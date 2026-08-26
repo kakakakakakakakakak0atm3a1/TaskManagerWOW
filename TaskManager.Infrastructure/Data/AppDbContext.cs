@@ -9,6 +9,8 @@ namespace TaskManager.Infrastructure.Data
         {
         }
 
-        public DbSet<TaskItem> TaskItems { get; set; }
+        
+
+       public DbSet<TaskItem> Tasks => Set<TaskItem>(); 
     }
 }
