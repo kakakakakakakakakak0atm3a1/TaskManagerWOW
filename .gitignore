@@ -69,7 +69,7 @@ artifacts/
 .tye/
 
 # ASP.NET Scaffolding
-ScaffoldingReadMe.txt
+
 
 # StyleCop
 StyleCopReport.xml
@@ -482,5 +482,5 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
-* . d b  
+ 
  

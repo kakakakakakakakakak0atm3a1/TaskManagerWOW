@@ -12,5 +12,6 @@ namespace TaskManager.Infrastructure.Data
         
 
        public DbSet<TaskItem> Tasks => Set<TaskItem>(); 
+       public DbSet<User> Users => Set<User>();
     }
 }
