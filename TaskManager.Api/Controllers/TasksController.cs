@@ -5,6 +5,7 @@ using TaskManager.Domain.Entities;
 using TaskManager.Infrastructure.Data;
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
  namespace TaskManager.Api.Controllers;
 
@@ -30,7 +31,10 @@ using Microsoft.AspNetCore.Authorization;
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10)
     {
-        IQueryable<TaskItem> query = _context.Tasks;
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+     
+        IQueryable<TaskItem> query = _context.Tasks.Where(t => t.UserId == userId);
+        
         if (isDone.HasValue)
         {
             query = query.Where(t => t.IsDone == isDone.Value);
@@ -51,6 +55,7 @@ using Microsoft.AspNetCore.Authorization;
             _ => query.OrderBy(t => t.Id)
         };
         var tasks = await query
+        
         .Skip((page-1) * pageSize)
         .Take(pageSize)
         .ToListAsync();
@@ -60,7 +65,9 @@ using Microsoft.AspNetCore.Authorization;
 [HttpGet("{id}")]
     public async Task<ActionResult<TaskResponseDto>> GetTask(int id)
     {
-        var task = await _context.Tasks.FindAsync(id);
+       
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var task = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id && t.UserId ==  userId);
         if (task == null)
         {
             return NotFound();
@@ -74,7 +81,7 @@ using Microsoft.AspNetCore.Authorization;
         var task = _mapper.Map<TaskItem>(createTaskDto);
         task.IsDone = false;
         task.CreatedAt = DateTime.UtcNow;
-
+        task.UserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0"); 
         _context.Tasks.Add(task);
         await _context.SaveChangesAsync();
 
@@ -84,7 +91,10 @@ using Microsoft.AspNetCore.Authorization;
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteTask(int id)
     {
-        var task = await _context.Tasks.FindAsync(id);
+         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+         
+        var task = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id && t.UserId ==  userId);
+
         if (task == null)
         {
             return NotFound();
