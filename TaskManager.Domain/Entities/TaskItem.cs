@@ -3,6 +3,7 @@ namespace TaskManager.Domain.Entities
     public class TaskItem
     {
         public int Id {get; set;}
+        public int UserId{get; set;}
         public string Title {get; set;} = "unknown";
 
     public string? Description {get; set;}
