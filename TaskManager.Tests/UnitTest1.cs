@@ -7,69 +7,77 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using TaskManager.Api.Mapping;
 using TaskManager.Api.DTOs;
-
+using TaskManager.Api.Services;
+using Moq;
+using TaskManager.Domain.Entities;
 namespace TaskManager.Tests;
 
 public class TasksControllerTests
 {
-    private AppDbContext GetInMemoryContext()
-    {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
+    private readonly Mock<ITaskService> _taskServiceMock;
+    private readonly IMapper _mapper;
 
-        var context = new AppDbContext(options);
-        return context;
-    }
-    private void SetUserContext(TasksController controller, int userId)
+    public TasksControllerTests()
     {
-        var claims = new List<Claim> { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) };
-        var identity = new ClaimsIdentity(claims, "TestAuth");
+        _taskServiceMock = new Mock<ITaskService>();
+        var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingProfile>());
+
+        _mapper = config.CreateMapper();
+    }
+    private TasksController CreateController(int userId)
+    {
+        var controller = new TasksController(_taskServiceMock.Object, _mapper);
+        
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString())
+        };
+        var identity = new ClaimsIdentity(claims, "TestAuthType");
         var claimsPrincipal = new ClaimsPrincipal(identity);
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = claimsPrincipal }
         };
+        return controller;
     }
 
     [Fact]
     public async Task GetTask_ReturnsNotFound_WhenTaskDoesNotExist()
     {
         // Arrange
-        var context = GetInMemoryContext();
-        var controller = new TasksController(context, mapper: GetMapper());
-        SetUserContext(controller, 1);
+        var controller = CreateController(1);
+        // Setup mock
+        _taskServiceMock.Setup(s => s.GetTaskByIdAsync(1, 1)).ReturnsAsync((TaskItem?)null);
         // Act
         var result = await controller.GetTask(1);
         // Assert
         Assert.IsType<NotFoundResult>(result.Result);
     }
-       private IMapper GetMapper()
-    {
-        var config = new MapperConfiguration(cfg => cfg.AddProfile<MappingProfile>());
-        return config.CreateMapper();
-    }
+     
     [Fact]
     public async Task GetAll_ReturnsTasks_ForAuthenticatedUser()
     {
         // Arrange
-        var context = GetInMemoryContext();
-        var controller = new TasksController(context, mapper: GetMapper());
-        SetUserContext(controller, 1);
+        var controller = CreateController(1);
+        var tasks = new List<TaskItem>
+        {
+            new TaskItem { Id = 1, Title = "Task 1", UserId = 1 },
+            new TaskItem { Id = 2, Title = "Task 2", UserId = 1 },
+           // Different user
+        };
 
-        // Seed data
-        context.Tasks.Add(new TaskManager.Domain.Entities.TaskItem { Id = 1, Title = "Task 1", UserId = 1 });
-        context.Tasks.Add(new TaskManager.Domain.Entities.TaskItem { Id = 2, Title = "Task 2", UserId = 2 });
-        context.Tasks.Add(new TaskManager.Domain.Entities.TaskItem { Id = 3, Title = "Task 3", UserId = 1 });
-        await context.SaveChangesAsync();
+        // Setup mock
+       _taskServiceMock.Setup(s => s.GetTasksAsync(1, null, null, null, null, 1, 10))
+            .ReturnsAsync(tasks);
+        
 
         // Act
         var result = await controller.GetAll(null, null, null, null);
 
         // Assert
-       var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var tasks = Assert.IsAssignableFrom<IEnumerable<TaskResponseDto>>(okResult.Value);
-        Assert.Equal(2, tasks.Count()); // Only tasks for user with ID 1 should be returned
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var resultTasks = Assert.IsAssignableFrom<IEnumerable<TaskResponseDto>>(okResult.Value);
+        Assert.Equal(2, resultTasks.Count()); 
     }
    
     [Fact]
@@ -77,14 +85,13 @@ public class TasksControllerTests
     public async Task GetTask_ReturnsTask_ForAuthenticatedUser()
     {
         // Arrange
-        var context = GetInMemoryContext();
-        var controller = new TasksController(context, mapper: GetMapper());
-        SetUserContext(controller, 1);
+        
+        var controller = CreateController(1);
+      
 
-        // Seed data
-        var task = new TaskManager.Domain.Entities.TaskItem { Id = 1, Title = "Task 1", UserId = 1 };
-        context.Tasks.Add(task);
-        await context.SaveChangesAsync();
+        // Setup mock
+        var task = new TaskItem { Id = 1, Title = "Task 1", UserId = 1 };
+        _taskServiceMock.Setup(s => s.GetTaskByIdAsync(1, 1)).ReturnsAsync(task);
 
         // Act
         var result = await controller.GetTask(1);
@@ -99,9 +106,9 @@ public class TasksControllerTests
     public async Task DeleteTask_ReturnsNotFound_WhenTaskDoesNotExist()
     {
         // Arrange
-        var context = GetInMemoryContext();
-        var controller = new TasksController(context, mapper: GetMapper());
-        SetUserContext(controller, 1);
+       var controller = CreateController(1);
+       // Setup mock
+        _taskServiceMock.Setup(s => s.DeleteTaskAsync(1, 1)).ReturnsAsync(false);
         // Act
         var result = await controller.DeleteTask(1);
         // Assert
@@ -113,15 +120,9 @@ public class TasksControllerTests
     public async Task DeleteTask_ReturnsNoContent_WhenTaskExists()
     {
         // Arrange
-        var context = GetInMemoryContext();
-        var controller = new TasksController(context, mapper: GetMapper());
-        SetUserContext(controller, 1);
-
-        // Seed data
-        var task = new TaskManager.Domain.Entities.TaskItem { Id = 1, Title = "Task 1", UserId = 1 };
-        context.Tasks.Add(task);
-        await context.SaveChangesAsync();
-
+        var controller = CreateController(1);
+        // Setup mock
+        _taskServiceMock.Setup(s => s.DeleteTaskAsync(1, 1)).ReturnsAsync(true);
         // Act
         var result = await controller.DeleteTask(1);
 

@@ -9,7 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi.Models;
-
+using TaskManager.Api.Services;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -65,6 +65,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<CreateTaskDtoValidator>();
 builder.Services.AddAutoMapper(typeof(Program));
+builder.Services.AddScoped<ITaskService, TaskService>();
 
 
 builder.Services.AddDbContext<AppDbContext>(options =>
