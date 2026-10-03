@@ -22,6 +22,7 @@ using (var scope = new app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
 }
+//for deploy to Render.com
 
 builder.Host.UseSerilog();
 // Add services to the container.
