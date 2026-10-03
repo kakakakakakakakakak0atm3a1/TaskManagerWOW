@@ -16,13 +16,8 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day)
     .CreateLogger();
 
-var builder = WebApplication.CreateBuilder(args);
-using (var scope = new app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-}
-//for deploy to Render.com
+var  builder = WebApplication.CreateBuilder(args);
+
 
 builder.Host.UseSerilog();
 // Add services to the container.
@@ -78,6 +73,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
+using (var scope = app.Services.CreateScope())
+{ 
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
+//for deploy to Render.com
 app.UseMiddleware<ExceptionMiddleware>();
 
 
